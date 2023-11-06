@@ -1,0 +1,41 @@
+{
+	"schemaVersion": 1,
+	"id": "telemc",
+	"version": "${version}",
+	"name": "TeleMC",
+	"description": "Simple mod to extract telemetry data from Minecraft",
+	"authors": [
+		"Wade Brainerd"
+	],
+	"contact": {
+		"homepage": "https://github.com/wadetb/telemc",
+		"sources": "https://github.com/wadetb/telemc"
+	},
+	"license": "CC0-1.0",
+	"icon": "assets/telemc/icon.png",
+	"environment": "*",
+	"entrypoints": {
+		"main": [
+			"com.wadeb.telemc.TeleMCMod"
+		],
+		"client": [
+			"com.wadeb.telemc.client.TeleMCModClient"
+		]
+	},
+	"mixins": [
+		"telemc.mixins.json",
+		{
+			"config": "telemc.client.mixins.json",
+			"environment": "client"
+		}
+	],
+	"depends": {
+		"fabricloader": ">=0.14.22",
+		"minecraft": "~1.20.1",
+		"java": ">=17",
+		"fabric-api": "*"
+	},
+	"suggests": {
+		"another-mod": "*"
+	}
+}
