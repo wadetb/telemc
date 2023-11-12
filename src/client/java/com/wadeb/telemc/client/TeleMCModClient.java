@@ -15,6 +15,7 @@ import org.java_websocket.handshake.ClientHandshake;
 import org.java_websocket.WebSocket;
 
 import java.net.InetSocketAddress;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
@@ -29,6 +30,7 @@ import net.minecraft.client.network.ClientPlayerEntity;
 import net.minecraft.world.World;
 import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
+import net.minecraft.item.ItemStack;
 import net.minecraft.state.property.Property;
 import net.minecraft.block.BlockState;
 import net.minecraft.block.entity.BlockEntity;
@@ -93,6 +95,14 @@ public class TeleMCModClient implements ClientModInitializer {
 		});
 	}
 
+	private Map<String, Object> getItemData(ItemStack stack) {
+		Map<String, Object> itemData = new HashMap<>();
+		itemData.put("name", stack.getName().getString());
+		itemData.put("count", stack.getCount());
+		itemData.put("damage", stack.getDamage());
+		return itemData;
+	}
+
 	private String getPlayerData() {
 		ClientPlayerEntity player = MinecraftClient.getInstance().player;
 		ClientWorld world = MinecraftClient.getInstance().world;
@@ -110,6 +120,26 @@ public class TeleMCModClient implements ClientModInitializer {
 		data.put("pitch", player.getPitch());
 		data.put("health", player.getHealth());
 		data.put("hunger", player.getHungerManager().getFoodLevel());
+
+		Map<String, List<Map<String, Object>>> inventoryData = new HashMap<>();
+		List<Map<String, Object>> mainInventoryData = new ArrayList<>();
+		for (int i = 0; i < player.getInventory().main.size(); i++) {
+			ItemStack stack = player.getInventory().main.get(i);
+			mainInventoryData.add(getItemData(stack));
+		}
+		inventoryData.put("main", mainInventoryData);
+		List<Map<String, Object>> armorInventoryData = new ArrayList<>();
+		for (int i = 0; i < player.getInventory().armor.size(); i++) {
+			ItemStack stack = player.getInventory().armor.get(i);
+			armorInventoryData.add(getItemData(stack));
+		}
+		inventoryData.put("armor", armorInventoryData);
+		List<Map<String, Object>> offhandInventoryData = new ArrayList<>();
+		ItemStack offhandStack = player.getInventory().offHand.get(0);
+		offhandInventoryData.add(getItemData(offhandStack));
+		inventoryData.put("offhand", offhandInventoryData);
+		data.put("selectedSlot", player.getInventory().selectedSlot);
+		data.put("inventory", inventoryData);
 
 		HitResult hitResult = player.raycast(30.0D, 0.0F, false);
 		if (hitResult.getType() == HitResult.Type.BLOCK) {
@@ -151,7 +181,7 @@ public class TeleMCModClient implements ClientModInitializer {
 				data.put("targetedEntity", entityData);
 			}
 		}
-
+		
 //		List<Map<String, Object>> nearbyEntities = world.getEntitiesByClass(
 //				Entity.class,
 //				new Box(player.getBlockPos()).expand(100),
