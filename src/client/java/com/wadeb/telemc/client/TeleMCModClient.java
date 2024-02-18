@@ -1,10 +1,6 @@
 package com.wadeb.telemc.client;
 
-import java.io.BufferedReader;
-import java.io.IOException;
-
 import net.minecraft.client.world.ClientWorld;
-import net.minecraft.util.Identifier;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -20,46 +16,82 @@ import java.util.HashMap;
 import java.util.Map;
 import java.util.List;
 import java.util.Optional;
-import java.util.stream.Collectors;
-
 import com.google.gson.Gson;
-
 import net.fabricmc.fabric.api.client.event.lifecycle.v1.ClientTickEvents;
+import net.minecraft.client.gui.Element;
+import net.minecraft.client.gui.Selectable;
+import net.minecraft.client.gui.screen.Screen;
+import net.minecraft.client.gui.screen.ingame.ScreenHandlerProvider;
 import net.minecraft.client.network.ClientPlayerEntity;
 
-import net.minecraft.world.World;
-import net.minecraft.client.MinecraftClient;
 import net.minecraft.entity.Entity;
 import net.minecraft.item.ItemStack;
+import net.minecraft.screen.slot.Slot;
 import net.minecraft.state.property.Property;
 import net.minecraft.block.BlockState;
-import net.minecraft.block.entity.BlockEntity;
 import net.minecraft.util.hit.BlockHitResult;
-import net.minecraft.util.hit.EntityHitResult;
 import net.minecraft.util.hit.HitResult;
 import net.minecraft.util.math.BlockPos;
 import net.minecraft.util.math.Box;
 import net.minecraft.util.math.Vec3d;
 
-class MinecraftWebSocketServer extends WebSocketServer {
+class TeleMCWebSocketServer extends WebSocketServer {
 
-	public MinecraftWebSocketServer(int port) {
+	public TeleMCWebSocketServer(int port) {
 		super(new InetSocketAddress(port));
+		setReuseAddr(true);
 	}
 
 	@Override
 	public void onOpen(WebSocket conn, ClientHandshake handshake) {
-		System.out.println("New connection from " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
+		System.out.println(
+				"New websocket connection from " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
 	}
 
 	@Override
 	public void onClose(WebSocket conn, int code, String reason, boolean remote) {
-		System.out.println("Closed connection to " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
+		System.out.println(
+				"Closed websocket connection to " + conn.getRemoteSocketAddress().getAddress().getHostAddress());
 	}
 
 	@Override
 	public void onMessage(WebSocket conn, String message) {
-		System.out.println("Ignored message from client: " + message);
+		System.out.println("Received message from client: " + message);
+		if (message.startsWith("key_up")) {
+			String[] parts = message.split(" ");
+			int key = Integer.parseInt(parts[1]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeKeyUp(key);
+		} else if (message.startsWith("key_down")) {
+			String[] parts = message.split(" ");
+			int key = Integer.parseInt(parts[1]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeKeyDown(key);
+		} else if (message.startsWith("mouse_move_to")) {
+			String[] parts = message.split(" ");
+			double x = Double.parseDouble(parts[1]);
+			double y = Double.parseDouble(parts[2]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeMouseMoveTo(x, y);
+		} else if (message.startsWith("mouse_move")) {
+			String[] parts = message.split(" ");
+			double dx = Double.parseDouble(parts[1]);
+			double dy = Double.parseDouble(parts[2]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeMouseMove(dx, dy);
+		} else if (message.startsWith("mouse_down")) {
+			String[] parts = message.split(" ");
+			int button = Integer.parseInt(parts[1]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeMouseDown(button);
+		} else if (message.startsWith("mouse_up")) {
+			String[] parts = message.split(" ");
+			int button = Integer.parseInt(parts[1]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeMouseUp(button);
+		} else {
+			System.out.println("Ignored message from client: " + message);
+		}
 	}
 
 	@Override
@@ -69,7 +101,7 @@ class MinecraftWebSocketServer extends WebSocketServer {
 
 	@Override
 	public void onStart() {
-		System.out.println("Server started!");
+		System.out.println("TeleMC websocket server started.");
 	}
 }
 
@@ -81,18 +113,81 @@ public class TeleMCModClient implements ClientModInitializer {
 
 	@Override
 	public void onInitializeClient() {
-		LOGGER.info("Hello TeleMC Client!");
+		LOGGER.info("TeleMC starting websocket server.");
 
-		MinecraftWebSocketServer server = new MinecraftWebSocketServer(8025);
+		TeleMCWebSocketServer server = new TeleMCWebSocketServer(WEBSOCKET_PORT);
 		server.start();
 
 		ClientTickEvents.END_CLIENT_TICK.register(client -> {
+			Map<String, Object> data = new HashMap<>();
 			if (client.player != null) {
-				ClientPlayerEntity player = client.player;
-				String playerData = getPlayerData();
-				server.broadcast(playerData);
+				data.put("player", getPlayerData(client.player));
 			}
+			if (client.currentScreen != null) {
+				data.put("screen", getScreenData(client.currentScreen));
+			}
+
+			String json = gson.toJson(data);
+			server.broadcast(json);
 		});
+	}
+
+	private Map<String, Object> getScreenData(Screen screen) {
+		Map<String, Object> screenData = new HashMap<>();
+		screenData.put("type", screen.getClass().getName());
+		screenData.put("title", screen.getTitle().getString());
+		screenData.put("width", screen.width);
+		screenData.put("height", screen.height);
+
+		List<Map<String, Object>> selectables = new ArrayList<>();
+		if (screen instanceof TeleMCScreenInterface) {
+			for (Selectable selectable : ((TeleMCScreenInterface) screen).getSelectables()) {
+				if (selectable instanceof TeleMCGetDataInterface) {
+					selectables.add(((TeleMCGetDataInterface) selectable).getTeleMCData());
+				} else {
+					Map<String, Object> selectableData = new HashMap<>();
+					selectableData.put("class", selectable.getClass().getName());
+					selectables.add(selectableData);
+				}
+			}
+		}
+		screenData.put("selectables", selectables);
+
+		if (screen instanceof ScreenHandlerProvider<?>) {
+			List<Map<String, Object>> slots = new ArrayList<>();
+			ScreenHandlerProvider<?> screenHandlerProvider = (ScreenHandlerProvider<?>) screen;
+			for (Slot slot : screenHandlerProvider.getScreenHandler().slots) {
+				Map<String, Object> slotData = new HashMap<>();
+				slotData.put("class", slot.getClass().getName());
+				slotData.put("index", slot.getIndex());
+				slotData.put("x", slot.x);
+				slotData.put("y", slot.y);
+				ItemStack stack = slot.getStack();
+				if (!stack.isEmpty()) {
+					slotData.put("item", getItemData(stack));
+				}
+				slots.add(slotData);
+			}
+			screenData.put("slots", slots);
+		}
+
+		List<Map<String, Object>> children = new ArrayList<>();
+		for (Element element : screen.children()) {
+			Map<String, Object> elementData = new HashMap<>();
+			if (element instanceof TeleMCGetDataInterface) {
+				elementData = ((TeleMCGetDataInterface) element).getTeleMCData();
+			} else {
+				elementData.put("class", element.getClass().getName());
+			}
+			children.add(elementData);
+		}
+		screenData.put("children", children);
+
+		if (screen instanceof TeleMCScreenInterface) {
+			screenData.put("narration", ((TeleMCScreenInterface) screen).getNarratorText());
+		}
+
+		return screenData;
 	}
 
 	private Map<String, Object> getItemData(ItemStack stack) {
@@ -103,23 +198,22 @@ public class TeleMCModClient implements ClientModInitializer {
 		return itemData;
 	}
 
-	private String getPlayerData() {
-		ClientPlayerEntity player = MinecraftClient.getInstance().player;
-		ClientWorld world = MinecraftClient.getInstance().world;
+	private Map<String, Object> getPlayerData(ClientPlayerEntity player) {
+		Map<String, Object> playerData = new HashMap<>();
 
-		if (player == null || world == null) {
-			return "{}";
+		ClientWorld world = player.clientWorld;
+		if (world == null) {
+			return playerData;
 		}
 
-		Map<String, Object> data = new HashMap<>();
-		data.put("player", player.getGameProfile().getName());
-		data.put("x", player.getX());
-		data.put("y", player.getY());
-		data.put("z", player.getZ());
-		data.put("yaw", player.getYaw());
-		data.put("pitch", player.getPitch());
-		data.put("health", player.getHealth());
-		data.put("hunger", player.getHungerManager().getFoodLevel());
+		playerData.put("name", player.getGameProfile().getName());
+		playerData.put("x", player.getX());
+		playerData.put("y", player.getY());
+		playerData.put("z", player.getZ());
+		playerData.put("yaw", player.getYaw());
+		playerData.put("pitch", player.getPitch());
+		playerData.put("health", player.getHealth());
+		playerData.put("hunger", player.getHungerManager().getFoodLevel());
 
 		Map<String, List<Map<String, Object>>> inventoryData = new HashMap<>();
 		List<Map<String, Object>> mainInventoryData = new ArrayList<>();
@@ -138,8 +232,8 @@ public class TeleMCModClient implements ClientModInitializer {
 		ItemStack offhandStack = player.getInventory().offHand.get(0);
 		offhandInventoryData.add(getItemData(offhandStack));
 		inventoryData.put("offhand", offhandInventoryData);
-		data.put("selectedSlot", player.getInventory().selectedSlot);
-		data.put("inventory", inventoryData);
+		playerData.put("selectedSlot", player.getInventory().selectedSlot);
+		playerData.put("inventory", inventoryData);
 
 		HitResult hitResult = player.raycast(30.0D, 0.0F, false);
 		if (hitResult.getType() == HitResult.Type.BLOCK) {
@@ -158,7 +252,7 @@ public class TeleMCModClient implements ClientModInitializer {
 				targetedBlock.put(propertyName, propertyValue);
 			}
 
-			data.put("targetedBlock", targetedBlock);
+			playerData.put("targetedBlock", targetedBlock);
 		}
 
 		Vec3d rayFrom = player.getCameraPosVec(0.0f);
@@ -178,24 +272,24 @@ public class TeleMCModClient implements ClientModInitializer {
 				entityData.put("x", entity.getX());
 				entityData.put("y", entity.getY());
 				entityData.put("z", entity.getZ());
-				data.put("targetedEntity", entityData);
+				playerData.put("targetedEntity", entityData);
 			}
 		}
-		
-//		List<Map<String, Object>> nearbyEntities = world.getEntitiesByClass(
-//				Entity.class,
-//				new Box(player.getBlockPos()).expand(100),
-//				e -> e != player).stream().map(entity -> {
-//					Map<String, Object> entityData = new HashMap<>();
-//					entityData.put("type", entity.getType().toString());
-//					entityData.put("name", entity.getType().getTranslationKey());
-//					entityData.put("x", entity.getX());
-//					entityData.put("y", entity.getY());
-//					entityData.put("z", entity.getZ());
-//					return entityData;
-//				}).collect(Collectors.toList());
-//		data.put("entities", nearbyEntities);
 
-		return gson.toJson(data);
+		// List<Map<String, Object>> nearbyEntities = world.getEntitiesByClass(
+		// Entity.class,
+		// new Box(player.getBlockPos()).expand(100),
+		// e -> e != player).stream().map(entity -> {
+		// Map<String, Object> entityData = new HashMap<>();
+		// entityData.put("type", entity.getType().toString());
+		// entityData.put("name", entity.getType().getTranslationKey());
+		// entityData.put("x", entity.getX());
+		// entityData.put("y", entity.getY());
+		// entityData.put("z", entity.getZ());
+		// return entityData;
+		// }).collect(Collectors.toList());
+		// playerData.put("entities", nearbyEntities);
+
+		return playerData;
 	}
 }

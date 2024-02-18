@@ -3,7 +3,10 @@
 	"package": "com.wadeb.telemc.client.mixin",
 	"compatibilityLevel": "JAVA_17",
 	"client": [
-		"TeleMCClientMixin"
+		"TeleMCClientMixin",
+		"TeleMCClickableWidgetMixin",
+		"TeleMCInputUtilMixin",
+		"TeleMCScreenMixin"
 	],
 	"injectors": {
 		"defaultRequire": 1
