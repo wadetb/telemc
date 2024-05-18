@@ -67,6 +67,11 @@ class TeleMCWebSocketServer extends WebSocketServer {
 			int key = Integer.parseInt(parts[1]);
 			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
 			inputManager.fakeKeyDown(key);
+		} else if (message.startsWith("char")) {
+			String[] parts = message.split(" ");
+			int codepoint = Integer.parseInt(parts[1]);
+			TeleMCInputManager inputManager = TeleMCInputManager.getInstance();
+			inputManager.fakeChar(codepoint);
 		} else if (message.startsWith("mouse_move_to")) {
 			String[] parts = message.split(" ");
 			double x = Double.parseDouble(parts[1]);
@@ -132,7 +137,7 @@ public class TeleMCModClient implements ClientModInitializer {
 		});
 	}
 
-	private Map<String, Object> getScreenData(Screen screen) {
+	private static Map<String, Object> getScreenData(Screen screen) {
 		Map<String, Object> screenData = new HashMap<>();
 		screenData.put("type", screen.getClass().getName());
 		screenData.put("title", screen.getTitle().getString());
@@ -153,10 +158,9 @@ public class TeleMCModClient implements ClientModInitializer {
 		}
 		screenData.put("selectables", selectables);
 
-		if (screen instanceof ScreenHandlerProvider<?>) {
+		if (screen instanceof ScreenHandlerProvider<?> screenHandlerProvider) {
 			List<Map<String, Object>> slots = new ArrayList<>();
-			ScreenHandlerProvider<?> screenHandlerProvider = (ScreenHandlerProvider<?>) screen;
-			for (Slot slot : screenHandlerProvider.getScreenHandler().slots) {
+            for (Slot slot : screenHandlerProvider.getScreenHandler().slots) {
 				Map<String, Object> slotData = new HashMap<>();
 				slotData.put("class", slot.getClass().getName());
 				slotData.put("index", slot.getIndex());
@@ -190,7 +194,7 @@ public class TeleMCModClient implements ClientModInitializer {
 		return screenData;
 	}
 
-	private Map<String, Object> getItemData(ItemStack stack) {
+	private static Map<String, Object> getItemData(ItemStack stack) {
 		Map<String, Object> itemData = new HashMap<>();
 		itemData.put("name", stack.getName().getString());
 		itemData.put("count", stack.getCount());
@@ -198,7 +202,7 @@ public class TeleMCModClient implements ClientModInitializer {
 		return itemData;
 	}
 
-	private Map<String, Object> getPlayerData(ClientPlayerEntity player) {
+	private static Map<String, Object> getPlayerData(ClientPlayerEntity player) {
 		Map<String, Object> playerData = new HashMap<>();
 
 		ClientWorld world = player.clientWorld;
@@ -215,6 +219,28 @@ public class TeleMCModClient implements ClientModInitializer {
 		playerData.put("health", player.getHealth());
 		playerData.put("hunger", player.getHungerManager().getFoodLevel());
 
+		getPlayerInventoryData(player, playerData);
+		getPlayerTargetedBlockData(player, world, playerData);
+		getPlayerTargetedEntityData(player, world, playerData);
+
+		// List<Map<String, Object>> nearbyEntities = world.getEntitiesByClass(
+		// Entity.class,
+		// new Box(player.getBlockPos()).expand(100),
+		// e -> e != player).stream().map(entity -> {
+		// Map<String, Object> entityData = new HashMap<>();
+		// entityData.put("type", entity.getType().toString());
+		// entityData.put("name", entity.getType().getTranslationKey());
+		// entityData.put("x", entity.getX());
+		// entityData.put("y", entity.getY());
+		// entityData.put("z", entity.getZ());
+		// return entityData;
+		// }).collect(Collectors.toList());
+		// playerData.put("entities", nearbyEntities);
+
+		return playerData;
+	}
+
+	private static void getPlayerInventoryData(ClientPlayerEntity player, Map<String, Object> playerData) {
 		Map<String, List<Map<String, Object>>> inventoryData = new HashMap<>();
 		List<Map<String, Object>> mainInventoryData = new ArrayList<>();
 		for (int i = 0; i < player.getInventory().main.size(); i++) {
@@ -234,7 +260,9 @@ public class TeleMCModClient implements ClientModInitializer {
 		inventoryData.put("offhand", offhandInventoryData);
 		playerData.put("selectedSlot", player.getInventory().selectedSlot);
 		playerData.put("inventory", inventoryData);
+	}
 
+	private static void getPlayerTargetedBlockData(ClientPlayerEntity player, ClientWorld world, Map<String, Object> playerData) {
 		HitResult hitResult = player.raycast(30.0D, 0.0F, false);
 		if (hitResult.getType() == HitResult.Type.BLOCK) {
 			BlockPos blockPos = ((BlockHitResult) hitResult).getBlockPos();
@@ -254,7 +282,9 @@ public class TeleMCModClient implements ClientModInitializer {
 
 			playerData.put("targetedBlock", targetedBlock);
 		}
+	}
 
+	private static void getPlayerTargetedEntityData(ClientPlayerEntity player, ClientWorld world, Map<String, Object> playerData) {
 		Vec3d rayFrom = player.getCameraPosVec(0.0f);
 		Vec3d lookVector = player.getRotationVec(0.0f).multiply(50.0);
 		Vec3d rayTo = rayFrom.add(lookVector);
@@ -275,21 +305,6 @@ public class TeleMCModClient implements ClientModInitializer {
 				playerData.put("targetedEntity", entityData);
 			}
 		}
-
-		// List<Map<String, Object>> nearbyEntities = world.getEntitiesByClass(
-		// Entity.class,
-		// new Box(player.getBlockPos()).expand(100),
-		// e -> e != player).stream().map(entity -> {
-		// Map<String, Object> entityData = new HashMap<>();
-		// entityData.put("type", entity.getType().toString());
-		// entityData.put("name", entity.getType().getTranslationKey());
-		// entityData.put("x", entity.getX());
-		// entityData.put("y", entity.getY());
-		// entityData.put("z", entity.getZ());
-		// return entityData;
-		// }).collect(Collectors.toList());
-		// playerData.put("entities", nearbyEntities);
-
-		return playerData;
 	}
+
 }

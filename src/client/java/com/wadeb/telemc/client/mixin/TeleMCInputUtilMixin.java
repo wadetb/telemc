@@ -43,6 +43,9 @@ public class TeleMCInputUtilMixin {
 			}
 		});
 		GLFW.glfwSetCharModsCallback(handle, (_handle, codePoint, modifiers) -> {
+			if (inputManager.logDeviceInput) {
+				System.out.println("Char: codepoint=" + codePoint +", modifiers=" + modifiers);
+			}
 			if (inputManager.allowDeviceInput) {
 				inputManager.originalCharModsCallback.invoke(handle, codePoint, modifiers);
 			}
