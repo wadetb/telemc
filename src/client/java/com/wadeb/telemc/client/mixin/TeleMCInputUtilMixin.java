@@ -19,11 +19,11 @@ import com.wadeb.telemc.client.TeleMCInputManager;
 
 @Mixin(InputUtil.class)
 public class TeleMCInputUtilMixin {
-	@Inject(at = @At("HEAD"), method = "isKeyPressed", cancellable = true)
-	private static void isKeyPressed(CallbackInfoReturnable<Boolean> info) {
-		// Don't report any keys as being pressed. Unsure what the impact will be.
-		info.setReturnValue(false);
-	}
+	// @Inject(at = @At("HEAD"), method = "isKeyPressed", cancellable = true)
+	// private static void isKeyPressed(CallbackInfoReturnable<Boolean> info) {
+	// 	// Don't report any keys as being pressed. Unsure what the impact will be.
+	// 	info.setReturnValue(false);
+	// }
 
     @Inject(at = @At("HEAD"), method = "setKeyboardCallbacks", cancellable = true)
 	private static void setKeyboardCallbacks(long handle, GLFWKeyCallbackI keyCallback, GLFWCharModsCallbackI charModsCallback, CallbackInfo info) {

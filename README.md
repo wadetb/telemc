@@ -1,9 +1,14 @@
 # TeleMC Mod
 
-## Setup
+To upgrade Minecraft version:
 
-For setup instructions please see the [fabric wiki page](https://fabricmc.net/wiki/tutorial:setup) that relates to the IDE that you are using.
+https://fabricmc.net/develop/
 
-## License
+To build:
 
-This template is available under the CC0 license. Feel free to learn from it and incorporate it in your own projects.
+```
+./gradlew build
+cp build/libs/telemc-1.0.0.jar /home/wadeb/.var/app/org.prismlauncher.PrismLauncher/data/PrismLauncher/instances/crafty 1.21.4/minecraft/mods
+```
+
+When you upgrade to a new version 

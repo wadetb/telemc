@@ -31,7 +31,7 @@ public class TeleMCClickableWidgetMixin implements TeleMCGetDataInterface {
     @Shadow private boolean visible;
     @Shadow private boolean focused;
     @Shadow private boolean hovered;
-    @Shadow private Tooltip tooltip;
+    // @Shadow private Tooltip tooltip;
 
     @Inject(at = @At("TAIL"), method = "<init>(IIIILnet/minecraft/text/Text;)V")
     public void ClickableWidget(int x, int y, int width, int height, Text message, CallbackInfo info) {
@@ -52,17 +52,17 @@ public class TeleMCClickableWidgetMixin implements TeleMCGetDataInterface {
         data.put("visible", this.visible);
         data.put("focused", this.focused);
         data.put("hovered", this.hovered);
-        if (this.tooltip != null) {
-            StringBuilder tooltipBuilder = new StringBuilder();
-            List<OrderedText> lines =  this.tooltip.getLines(MinecraftClient.getInstance());
-            for (OrderedText line : lines) {
-                line.accept((j, style, codePoint) -> {
-                    tooltipBuilder.append(Character.toChars(codePoint));
-                    return true;
-                });
-            }
-            data.put("tooltip", tooltipBuilder.toString());
-        }
+        // if (this.tooltip != null) {
+        //     StringBuilder tooltipBuilder = new StringBuilder();
+        //     List<OrderedText> lines =  this.tooltip.getLines(MinecraftClient.getInstance());
+        //     for (OrderedText line : lines) {
+        //         line.accept((j, style, codePoint) -> {
+        //             tooltipBuilder.append(Character.toChars(codePoint));
+        //             return true;
+        //         });
+        //     }
+        //     data.put("tooltip", tooltipBuilder.toString());
+        // }
         return data;
     }
 }

@@ -139,7 +139,7 @@ public class TeleMCModClient implements ClientModInitializer {
 
 	private static Map<String, Object> getScreenData(Screen screen) {
 		Map<String, Object> screenData = new HashMap<>();
-		screenData.put("type", screen.getClass().getName());
+		screenData.put("class", screen.getClass().getName());
 		screenData.put("title", screen.getTitle().getString());
 		screenData.put("width", screen.width);
 		screenData.put("height", screen.height);
